@@ -23,17 +23,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: { 
       'apikey': supabaseAnonKey,
       'X-Client-Info': 'supabase-js/2.39.7'
-    },
-    fetch: (url, options) => {
-      return fetch(url, {
-        ...options,
-        credentials: 'include',
-        mode: 'cors'
-      }).catch(error => {
-        console.error('Fetch error:', error);
-        toast.error('Erro de conexão com o servidor');
-        throw error;
-      });
     }
   },
   db: {
@@ -64,17 +53,12 @@ export const checkSupabaseConnection = async (retries = 3, delay = 2000) => {
       if (error) {
         console.warn(`Tentativa ${i + 1} de ${retries} falhou:`, error);
         
-        // Show different messages based on error type
-        if (error.code === '503') {
-          toast.error('Servidor Supabase temporariamente indisponível. Tentando reconectar...');
-        } else if (error.code === 'NETWORK_ERROR') {
-          toast.error('Erro de conexão. Verificando sua conexão com a internet...');
-        } else if (error.message?.includes('upstream connect error')) {
-          toast.error('Problema de conexão com o servidor. Tentando reconectar...');
-        } else if (error.message?.includes('Failed to fetch')) {
-          toast.error('Falha na conexão. Verificando sua conexão...');
+        if (error.code === 'PGRST301') {
+          // Invalid credentials error
+          toast.error('Credenciais do Supabase inválidas');
+          return false;
         }
-
+        
         if (i === retries - 1) {
           toast.error('Não foi possível conectar ao Supabase. Por favor, tente novamente mais tarde.');
           return false;
