@@ -20,7 +20,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce'
   },
   global: {
-    headers: { 'apikey': supabaseAnonKey }
+    headers: { 
+      'apikey': supabaseAnonKey,
+      'X-Client-Info': 'supabase-js/2.39.7'
+    },
+    fetch: (url, options) => {
+      return fetch(url, {
+        ...options,
+        credentials: 'include',
+        mode: 'cors'
+      }).catch(error => {
+        console.error('Fetch error:', error);
+        toast.error('Erro de conexão com o servidor');
+        throw error;
+      });
+    }
   },
   db: {
     schema: 'public'
@@ -57,6 +71,8 @@ export const checkSupabaseConnection = async (retries = 3, delay = 2000) => {
           toast.error('Erro de conexão. Verificando sua conexão com a internet...');
         } else if (error.message?.includes('upstream connect error')) {
           toast.error('Problema de conexão com o servidor. Tentando reconectar...');
+        } else if (error.message?.includes('Failed to fetch')) {
+          toast.error('Falha na conexão. Verificando sua conexão...');
         }
 
         if (i === retries - 1) {
