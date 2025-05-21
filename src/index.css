@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply font-sans antialiased text-gray-800 min-h-screen bg-gradient-to-b from-[#f0fdf4] to-[#dcfce7];
+  }
+}
+
+@layer components {
+  .input-primary {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500;
+  }
+
+  .btn-primary {
+    @apply py-3 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline-primary {
+    @apply py-3 px-4 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-lg;
+  }
+}
+
+/* Print styles */
+@media print {
+  .container {
+    margin: 0 !important;
+    padding: 20px !important;
+    max-width: none !important;
+  }
+
+  .section-content {
+    page-break-before: always !important;
+    break-before: always !important;
+    margin-top: 20px !important;
+  }
+
+  .section-content:first-child {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  .workout-day {
+    page-break-before: always !important;
+    break-before: always !important;
+    margin-top: 20px !important;
+    padding-top: 20px !important;
+  }
+
+  .workout-day:first-child {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  .meal-card {
+    page-break-before: always !important;
+    break-before: always !important;
+    margin-top: 20px !important;
+    padding-top: 20px !important;
+  }
+
+  .meal-card:first-child {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .keep-together {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .force-break {
+    page-break-after: always !important;
+    break-after: always !important;
+  }
+
+  .navigation-controls,
+  .pdf-buttons {
+    display: none !important;
+  }
+
+  .print-small-text {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  .print-spacing {
+    margin: 10px 0 !important;
+    padding: 10px !important;
+  }
+
+  h2, h3 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  table {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .metrics-grid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 20px !important;
+  }
+
+  .info-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 15px !important;
+  }
+
+  .workout-info {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .warmup-section,
+  .exercises-section,
+  .cooldown-section,
+  .tips-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .section-spacing {
+    margin-top: 30px !important;
+    padding-top: 20px !important;
+  }
+
+  .section-header {
+    margin-bottom: 15px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+}
