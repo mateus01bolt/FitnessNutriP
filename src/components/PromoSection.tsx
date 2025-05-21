@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Zap } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, safeQuery } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface UserData {
@@ -38,6 +38,11 @@ function PromoSection() {
 
     const setupSubscriptions = async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('Usuário não autenticado');
+        }
+
         const registrationSubscription = supabase
           .channel('registration-changes')
           .on(
@@ -46,7 +51,7 @@ function PromoSection() {
               event: '*', 
               schema: 'public', 
               table: 'registrations',
-              filter: `user_id=eq.${(await supabase.auth.getUser()).data.user?.id}`
+              filter: `user_id=eq.${user.id}`
             },
             () => {
               if (mounted) {
@@ -64,7 +69,7 @@ function PromoSection() {
               event: '*', 
               schema: 'public', 
               table: 'meal_selections',
-              filter: `user_id=eq.${(await supabase.auth.getUser()).data.user?.id}`
+              filter: `user_id=eq.${user.id}`
             },
             () => {
               if (mounted) {
@@ -169,21 +174,25 @@ function PromoSection() {
         return;
       }
 
-      const { data: registration, error: registrationError } = await supabase
-        .from('registrations')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: registration, error: registrationError } = await safeQuery(() =>
+        supabase
+          .from('registrations')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+      );
 
       if (registrationError) {
         throw new Error(`Erro ao carregar dados de registro: ${registrationError.message}`);
       }
 
-      const { data: meals, error: mealsError } = await supabase
-        .from('meal_selections')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: meals, error: mealsError } = await safeQuery(() =>
+        supabase
+          .from('meal_selections')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+      );
 
       if (mealsError) {
         throw new Error(`Erro ao carregar seleções de refeições: ${mealsError.message}`);
