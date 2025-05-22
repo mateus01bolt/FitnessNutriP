@@ -6,7 +6,9 @@ import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
 // Initialize Mercado Pago SDK with production credentials
-initMercadoPago('APP_USR-afeef873-6a68-450d-9002-0ed0a8cb499d');
+initMercadoPago('APP_USR-afeef873-6a68-450d-9002-0ed0a8cb499d', {
+  locale: 'pt-BR'
+});
 
 function Plans() {
   const navigate = useNavigate();
