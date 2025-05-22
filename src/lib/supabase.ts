@@ -203,3 +203,7 @@ export const getConnectionStatus = async () => {
     };
   }
 };
+
+export { supabase, checkSupabaseConnection }
+
+export { safeQuery }
