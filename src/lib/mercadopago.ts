@@ -2,8 +2,8 @@ import { initMercadoPago } from '@mercadopago/sdk-react';
 import { supabase } from './supabase';
 
 // Initialize Mercado Pago SDK
-const mpPublicKey = 'APP_USR-afeef873-6a68-450d-9002-0ed0a8cb499d';
-const mpAccessToken = 'APP_USR-7991851201197943-032112-96b25473e5b5e57f8dc1c6f8db422dbe-103740187';
+const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+const mpAccessToken = import.meta.env.VITE_MERCADOPAGO_ACCESS_TOKEN;
 
 if (!mpPublicKey || !mpAccessToken) {
   throw new Error('Missing Mercado Pago credentials');
