@@ -12,60 +12,65 @@ serve(async (req) => {
   }
 
   try {
+    // Get required environment variables
+    const webhookSecret = Deno.env.get('MERCADOPAGO_WEBHOOK_SECRET');
+    const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!webhookSecret || !mpAccessToken || !supabaseUrl || !supabaseKey) {
+      throw new Error('Missing required environment variables');
+    }
+
     // Get the webhook signature and payload
     const signature = req.headers.get('x-signature');
-    const webhookSecret = Deno.env.get('MERCADOPAGO_WEBHOOK_SECRET');
-    
-    if (!signature || !webhookSecret) {
-      throw new Error('Missing webhook signature or secret');
+    if (!signature) {
+      throw new Error('Missing webhook signature');
     }
 
     const body = await req.text();
     
     // Validate webhook signature using HMAC SHA-256
-    const hmac = await crypto.subtle.importKey(
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(webhookSecret),
+      encoder.encode(webhookSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     );
-    
-    const expectedSignature = await crypto.subtle.sign(
+
+    const actualSignature = await crypto.subtle.sign(
       'HMAC',
-      hmac,
-      new TextEncoder().encode(body)
+      key,
+      encoder.encode(body)
     );
-    
-    const actualSignature = new Uint8Array(
+
+    const expectedSignature = new Uint8Array(
       signature.split(',').map(byte => parseInt(byte))
     );
-    
-    const isValid = expectedSignature.length === actualSignature.length &&
-      expectedSignature.every((byte, i) => byte === actualSignature[i]);
-    
+
+    const isValid = actualSignature.length === expectedSignature.length &&
+      new Uint8Array(actualSignature).every((byte, i) => byte === expectedSignature[i]);
+
     if (!isValid) {
       throw new Error('Invalid webhook signature');
     }
 
-    const data = JSON.parse(body);
-    
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials');
-    }
-    
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Parse and validate the webhook payload
+    const data = JSON.parse(body);
+    if (!data.type || !data.data?.id) {
+      throw new Error('Invalid webhook payload');
+    }
 
     // Process payment notification
     if (data.type === 'payment') {
       const paymentId = data.data.id;
       
       // Fetch payment details from Mercado Pago
-      const mpAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
       const paymentResponse = await fetch(
         `https://api.mercadopago.com/v1/payments/${paymentId}`,
         {
@@ -84,10 +89,6 @@ serve(async (req) => {
       const status = payment.status;
 
       // Start a transaction for payment processing
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-
-      // Update payment record
       const { data: paymentRecord, error: paymentError } = await supabase
         .from('payments')
         .upsert({
