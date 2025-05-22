@@ -4,10 +4,30 @@ import toast from 'react-hot-toast';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  toast.error('Por favor, conecte ao Supabase primeiro');
-  throw new Error('Missing Supabase environment variables');
-}
+// Validate environment variables before creating client
+const validateConfig = () => {
+  const errors = [];
+  
+  if (!supabaseUrl) {
+    errors.push('VITE_SUPABASE_URL não encontrada');
+  } else if (!supabaseUrl.startsWith('https://')) {
+    errors.push('VITE_SUPABASE_URL inválida - deve começar com https://');
+  }
+  
+  if (!supabaseAnonKey) {
+    errors.push('VITE_SUPABASE_ANON_KEY não encontrada');
+  } else if (!supabaseAnonKey.includes('.')) {
+    errors.push('VITE_SUPABASE_ANON_KEY inválida - formato JWT incorreto');
+  }
+  
+  if (errors.length > 0) {
+    const errorMessage = errors.join('\n');
+    toast.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+validateConfig();
 
 // Configuração do cliente Supabase com retry e timeout
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -39,11 +59,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export const checkSupabaseConnection = async (retries = 3, delay = 2000) => {
   for (let i = 0; i < retries; i++) {
     try {
-      if (!supabaseUrl || !supabaseAnonKey) {
-        toast.error('Por favor, conecte ao Supabase primeiro');
-        return false;
-      }
-
       const { data, error } = await supabase
         .from('profiles')
         .select('count')
@@ -53,15 +68,25 @@ export const checkSupabaseConnection = async (retries = 3, delay = 2000) => {
       if (error) {
         console.warn(`Tentativa ${i + 1} de ${retries} falhou:`, error);
         
-        if (error.code === 'PGRST301') {
-          // Invalid credentials error
-          toast.error('Credenciais do Supabase inválidas');
-          return false;
-        }
-        
-        if (i === retries - 1) {
-          toast.error('Não foi possível conectar ao Supabase. Por favor, tente novamente mais tarde.');
-          return false;
+        // Handle specific error cases
+        switch (error.code) {
+          case 'PGRST301':
+            toast.error('Credenciais do Supabase inválidas. Por favor, verifique suas credenciais.');
+            return false;
+          case '20014':
+            toast.error('Erro de acesso ao banco. Por favor, verifique as permissões.');
+            return false;
+          case '23505':
+            toast.error('Conflito de dados. Por favor, tente novamente.');
+            return false;
+          case 'PGRST116':
+            toast.error('Erro de conexão com o banco de dados. Por favor, tente novamente.');
+            return false;
+          default:
+            if (i === retries - 1) {
+              toast.error(`Não foi possível conectar ao Supabase: ${error.message}`);
+              return false;
+            }
         }
         
         // Exponential backoff
@@ -72,6 +97,11 @@ export const checkSupabaseConnection = async (retries = 3, delay = 2000) => {
       return true;
     } catch (error) {
       console.warn(`Tentativa ${i + 1} de ${retries} falhou:`, error);
+      
+      if (error instanceof Error && error.message.includes('Failed to fetch')) {
+        toast.error('Erro de conexão com a internet. Por favor, verifique sua conexão.');
+        return false;
+      }
       
       if (i === retries - 1) {
         console.error('Supabase connection error:', error);
@@ -136,14 +166,40 @@ export const getConnectionStatus = async () => {
     
     const { data, error } = await Promise.race([connectionPromise, timeoutPromise]) as any;
     
+    if (error) {
+      if (error.message?.includes('Failed to fetch')) {
+        return {
+          isConnected: false,
+          error: 'Erro de conexão com a internet. Por favor, verifique sua conexão.'
+        };
+      }
+      
+      return {
+        isConnected: false,
+        error: error.message || 'Erro desconhecido ao conectar com Supabase'
+      };
+    }
+    
     return {
-      isConnected: !error,
-      error: error ? error.message : null
+      isConnected: true,
+      error: null
     };
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Connection timeout') {
+        return {
+          isConnected: false,
+          error: 'Tempo limite de conexão excedido. Por favor, tente novamente.'
+        };
+      }
+      return {
+        isConnected: false,
+        error: error.message
+      };
+    }
     return {
       isConnected: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Erro desconhecido'
     };
   }
 };
