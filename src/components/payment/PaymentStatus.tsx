@@ -28,7 +28,15 @@ function PaymentStatus() {
           .eq('id', user.id)
           .single();
 
-        return profile?.has_paid_plan || false;
+        const { data: plan } = await supabase
+          .from('nutritional_plans')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        return profile?.has_paid_plan && plan?.id;
       } catch (error) {
         console.error('Error checking plan status:', error);
         return false;
@@ -52,9 +60,9 @@ function PaymentStatus() {
         if (status === 'approved') {
           // Poll for plan generation completion
           const pollInterval = setInterval(async () => {
-            const hasPaidPlan = await checkPlanStatus();
+            const hasPlan = await checkPlanStatus();
             
-            if (hasPaidPlan) {
+            if (hasPlan) {
               clearInterval(pollInterval);
               toast.success('Plano gerado com sucesso! Redirecionando...');
               navigate('/plan', { replace: true });
