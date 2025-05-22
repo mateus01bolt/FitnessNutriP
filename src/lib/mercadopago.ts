@@ -2,8 +2,8 @@ import { initMercadoPago } from '@mercadopago/sdk-react';
 import { supabase } from './supabase';
 
 // Initialize Mercado Pago SDK
-const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-const mpAccessToken = import.meta.env.VITE_MERCADOPAGO_ACCESS_TOKEN;
+const mpPublicKey = 'TEST-b96fc414-cea4-4781-822b-0712a402db90';
+const mpAccessToken = 'TEST-7991851201197943-032112-dc195f1248842af0a4642961dc587f78-103740187';
 
 if (!mpPublicKey || !mpAccessToken) {
   throw new Error('Missing Mercado Pago credentials');
@@ -142,25 +142,5 @@ export const checkSubscriptionStatus = async (userId: string): Promise<boolean> 
   } catch (error) {
     console.error('Error checking subscription:', error);
     return false;
-  }
-};
-
-export const cancelSubscription = async (userId: string) => {
-  try {
-    const { error } = await supabase
-      .from('subscriptions')
-      .update({
-        status: 'cancelled',
-        end_date: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('status', 'active');
-
-    if (error) throw error;
-
-    return true;
-  } catch (error) {
-    console.error('Error cancelling subscription:', error);
-    throw error;
   }
 };
