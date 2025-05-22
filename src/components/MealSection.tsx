@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Trash2, Coffee, Sun, Moon, Cookie } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { CheckCircle2, Trash2, Coffee, Sun, Moon, Cookie, RefreshCw } from 'lucide-react';
+import { supabase, safeQuery } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface MealSectionProps {
@@ -12,6 +12,7 @@ function MealSection({ title, options }: MealSectionProps) {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Get gradient based on meal type
   const getGradient = () => {
@@ -122,23 +123,26 @@ function MealSection({ title, options }: MealSectionProps) {
     return nameWithoutEmoji;
   };
 
-  useEffect(() => {
-    loadUserSelections();
-  }, [title]);
-
   const loadUserSelections = async () => {
     try {
       setLoading(true);
+      setError(null);
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setError('Usuário não autenticado');
+        return;
+      }
 
-      const { data, error } = await supabase
-        .from('meal_selections')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data, error } = await safeQuery(() => 
+        supabase
+          .from('meal_selections')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+      );
 
-      if (error && error.message !== 'No rows found') {
+      if (error) {
         throw error;
       }
 
@@ -162,15 +166,22 @@ function MealSection({ title, options }: MealSectionProps) {
       }
     } catch (error) {
       console.error('Error loading selections:', error);
+      setError('Erro ao carregar suas seleções. Por favor, tente novamente.');
       toast.error('Erro ao carregar suas seleções');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadUserSelections();
+  }, [title]);
+
   const saveSelections = async (newSelections: string[]) => {
     try {
       setSaving(true);
+      setError(null);
+
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -196,20 +207,23 @@ function MealSection({ title, options }: MealSectionProps) {
           throw new Error('Tipo de refeição inválido');
       }
 
-      const { error } = await supabase
-        .from('meal_selections')
-        .upsert({
-          user_id: user.id,
-          [updateField]: newSelections
-        }, {
-          onConflict: 'user_id'
-        });
+      const { error } = await safeQuery(() => 
+        supabase
+          .from('meal_selections')
+          .upsert({
+            user_id: user.id,
+            [updateField]: newSelections
+          }, {
+            onConflict: 'user_id'
+          })
+      );
 
       if (error) throw error;
       setSelectedOptions(newSelections);
       toast.success('Seleções salvas com sucesso!');
     } catch (error) {
       console.error('Error saving selections:', error);
+      setError('Erro ao salvar suas escolhas. Por favor, tente novamente.');
       toast.error('Erro ao salvar suas escolhas');
     } finally {
       setSaving(false);
@@ -248,6 +262,29 @@ function MealSection({ title, options }: MealSectionProps) {
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className={`bg-gradient-to-r ${getGradient()} px-6 py-4 rounded-t-lg -mx-6 -mt-6 mb-6`}>
+          <div className="flex items-center justify-center space-x-3">
+            {getSectionIcon()}
+            <h2 className="text-2xl font-bold text-white">{title}</h2>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-8 space-y-4">
+          <p className="text-red-600 text-center">{error}</p>
+          <button
+            onClick={loadUserSelections}
+            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Tentar Novamente</span>
+          </button>
         </div>
       </div>
     );
