@@ -5,7 +5,7 @@ import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
-// Initialize Mercado Pago SDK
+// Initialize Mercado Pago SDK with production credentials
 initMercadoPago('APP_USR-afeef873-6a68-450d-9002-0ed0a8cb499d');
 
 function Plans() {
@@ -23,7 +23,7 @@ function Plans() {
         return;
       }
 
-      // Create payment preference
+      // Create payment preference with production credentials
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
@@ -50,7 +50,12 @@ function Plans() {
           auto_return: 'approved',
           external_reference: user.id,
           notification_url: `${window.location.origin}/api/webhook/mercadopago`,
-          statement_descriptor: 'FITNESSNUTRI'
+          statement_descriptor: 'FITNESSNUTRI',
+          payment_methods: {
+            installments: 1,
+            default_installments: 1
+          },
+          binary_mode: true
         })
       });
 
