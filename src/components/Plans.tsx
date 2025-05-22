@@ -5,10 +5,12 @@ import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
-// Initialize Mercado Pago SDK with production credentials
-initMercadoPago('APP_USR-afeef873-6a68-450d-9002-0ed0a8cb499d', {
-  locale: 'pt-BR'
-});
+// Initialize Mercado Pago SDK
+const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+if (!mpPublicKey) {
+  throw new Error('Missing Mercado Pago public key');
+}
+initMercadoPago(mpPublicKey);
 
 function Plans() {
   const navigate = useNavigate();
@@ -25,11 +27,11 @@ function Plans() {
         return;
       }
 
-      // Create payment preference with production credentials
+      // Create payment preference
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer APP_USR-7991851201197943-032112-96b25473e5b5e57f8dc1c6f8db422dbe-103740187`,
+          'Authorization': `Bearer ${import.meta.env.VITE_MERCADOPAGO_ACCESS_TOKEN}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -54,10 +56,10 @@ function Plans() {
           notification_url: `${window.location.origin}/api/webhook/mercadopago`,
           statement_descriptor: 'FITNESSNUTRI',
           payment_methods: {
-            installments: 1,
-            default_installments: 1
-          },
-          binary_mode: true
+            excluded_payment_methods: [],
+            excluded_payment_types: [],
+            installments: 1
+          }
         })
       });
 
