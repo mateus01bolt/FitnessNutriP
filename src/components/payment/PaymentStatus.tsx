@@ -10,8 +10,31 @@ function PaymentStatus() {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 10; // Maximum number of retries
+  const retryDelay = 3000; // 3 seconds between retries
 
   useEffect(() => {
+    const checkPlanStatus = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('has_paid_plan')
+          .eq('id', user.id)
+          .single();
+
+        return profile?.has_paid_plan || false;
+      } catch (error) {
+        console.error('Error checking plan status:', error);
+        return false;
+      }
+    };
+
     const handlePaymentStatus = async () => {
       try {
         const params = new URLSearchParams(location.search);
@@ -27,26 +50,27 @@ function PaymentStatus() {
         await processPayment(externalReference, paymentId, status);
 
         if (status === 'approved') {
-          // Check if the user's profile has been updated
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('has_paid_plan')
-            .eq('id', externalReference)
-            .single();
-
-          if (profileError) {
-            throw profileError;
-          }
-
-          if (profile?.has_paid_plan) {
-            toast.success('Pagamento aprovado! Redirecionando para seu plano...');
-            // Redirect after a short delay
-            setTimeout(() => {
+          // Poll for plan generation completion
+          const pollInterval = setInterval(async () => {
+            const hasPaidPlan = await checkPlanStatus();
+            
+            if (hasPaidPlan) {
+              clearInterval(pollInterval);
+              toast.success('Plano gerado com sucesso! Redirecionando...');
               navigate('/plan', { replace: true });
-            }, 2000);
-          } else {
-            throw new Error('Profile not updated after payment');
-          }
+            } else {
+              setRetryCount(prev => {
+                if (prev >= maxRetries) {
+                  clearInterval(pollInterval);
+                  throw new Error('Timeout waiting for plan generation');
+                }
+                return prev + 1;
+              });
+            }
+          }, retryDelay);
+
+          // Cleanup interval on component unmount
+          return () => clearInterval(pollInterval);
         }
       } catch (error) {
         console.error('Error processing payment status:', error);
@@ -68,7 +92,9 @@ function PaymentStatus() {
       return {
         icon: <CheckCircle className="h-16 w-16 text-green-500" />,
         title: 'Pagamento Aprovado!',
-        message: 'Seu plano foi ativado com sucesso. Você será redirecionado em alguns segundos...',
+        message: retryCount > 0 
+          ? 'Gerando seu plano personalizado... Por favor, aguarde.'
+          : 'Seu plano está sendo gerado. Você será redirecionado em alguns instantes...',
         buttonText: 'Ir para Meu Plano',
         buttonAction: () => navigate('/plan', { replace: true }),
         buttonColor: 'bg-green-500 hover:bg-green-600'
@@ -113,6 +139,14 @@ function PaymentStatus() {
           <p className="text-gray-600">{content.message}</p>
           {error && (
             <p className="text-red-500 text-sm">{error}</p>
+          )}
+          {retryCount > 0 && retryCount < maxRetries && (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-purple-600"></div>
+              <p className="text-sm text-gray-500">
+                Tentativa {retryCount} de {maxRetries}...
+              </p>
+            </div>
           )}
           <button
             onClick={content.buttonAction}
